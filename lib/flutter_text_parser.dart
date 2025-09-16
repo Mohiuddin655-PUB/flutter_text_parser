@@ -1,6 +1,12 @@
+/// A utility class for parsing strings with custom HTML-like tags
+/// and returning a list of styled text parts (`TextPart`).
 class TextParser {
   const TextParser._();
 
+  /// Parses the [source] string and returns a list of [TextPart].
+  ///
+  /// Automatically wraps the string with `<p>` tags if they are missing.
+  /// Supports nested tags like `<b>`, `<i>`, `<color:red>`, etc.
   static List<TextPart> parse(String source) {
     if (source.isEmpty) return [];
     if (!source.startsWith("<p>")) {
@@ -11,7 +17,7 @@ class TextParser {
     }
     List<TextPart> texts = [];
 
-    // Regex to extract everything inside <p>
+    // Regex to extract everything inside <p> tags
     RegExp pTagExp = RegExp(r'<p[^>]*>(.*?)</p>', dotAll: true);
 
     // Regex to match <tag> or <tag:attr> ... </tag(:attr)?>
@@ -25,7 +31,6 @@ class TextParser {
       List<TextPart> texts = [];
 
       Iterable<RegExpMatch> spanMatches = spanTagExp.allMatches(text);
-
       int lastIndex = 0;
 
       for (var spanMatch in spanMatches) {
@@ -87,27 +92,36 @@ class TextParser {
   }
 }
 
+/// Base class for parsed text parts.
 abstract class TextPart {
   final String text;
 
+  /// Returns true if the text part is italic.
   bool get isItalic => isExists({'i', 'italic'});
 
+  /// Returns true if the text part is bold.
   bool get isBold => isExists({'b', 'bold'});
 
+  /// Returns true if the text part has line-through decoration.
   bool get isLineThrough => isExists({'l', 'lineThrough'});
 
+  /// Returns true if the text part has overline decoration.
   bool get isOverline => isExists({'u', 'overline'});
 
+  /// Returns true if the text part is underlined.
   bool get isUnderline => isExists({'u', 'underline'});
 
+  /// Returns true if the text part contains spanned tags.
   bool get isSpannedText => this is SpannedText;
 
+  /// Checks if the text part contains any of the given [tags].
   bool isExists(Set<String> tags) {
     final x = this;
     if (x is! SpannedText) return false;
     return x.tags.any((e) => tags.contains(e.tag));
   }
 
+  /// Returns the first [SpannedTag] that matches one of the [tags].
   SpannedTag tag(Set<String> tags) {
     if (tags.isEmpty) return SpannedTag('');
     final x = this;
@@ -128,6 +142,7 @@ abstract class TextPart {
   String toString() => '$TextPart($text)';
 }
 
+/// Represents normal unstyled text.
 class NormalText extends TextPart {
   const NormalText(super.text);
 
@@ -135,6 +150,7 @@ class NormalText extends TextPart {
   String toString() => '$NormalText($text)';
 }
 
+/// Represents a tag with an optional attribute.
 class SpannedTag {
   final String tag;
   final String? attr;
@@ -148,6 +164,7 @@ class SpannedTag {
   }
 }
 
+/// Represents a piece of text with applied spanned tags.
 class SpannedText extends TextPart {
   final List<SpannedTag> tags;
 
@@ -157,6 +174,8 @@ class SpannedText extends TextPart {
   String toString() => '$SpannedText(text: $text, tags: $tags)';
 }
 
+/// Extension on [String] to directly parse it into spanned texts.
 extension TextParserExtension on String {
+  /// Returns a list of [TextPart] parsed from the string.
   List<TextPart> get parsedSpanTexts => TextParser.parse(this);
 }
