@@ -1,0 +1,162 @@
+class TextParser {
+  const TextParser._();
+
+  static List<TextPart> parse(String source) {
+    if (source.isEmpty) return [];
+    if (!source.startsWith("<p>")) {
+      source = "<p>$source";
+    }
+    if (!source.endsWith("</p>")) {
+      source = "$source</p>";
+    }
+    List<TextPart> texts = [];
+
+    // Regex to extract everything inside <p>
+    RegExp pTagExp = RegExp(r'<p[^>]*>(.*?)</p>', dotAll: true);
+
+    // Regex to match <tag> or <tag:attr> ... </tag(:attr)?>
+    RegExp spanTagExp = RegExp(
+      r'<(\w+)(?::([^>]+))?[^>]*>(.*?)</\1[^>]*>',
+      dotAll: true,
+    );
+
+    // Helper function to recursively extract nested spans
+    List<TextPart> parseSpans(String text, List<SpannedTag> tags) {
+      List<TextPart> texts = [];
+
+      Iterable<RegExpMatch> spanMatches = spanTagExp.allMatches(text);
+
+      int lastIndex = 0;
+
+      for (var spanMatch in spanMatches) {
+        String spanType = spanMatch.group(1)!; // e.g. "b" or "color"
+        String? attr = spanMatch.group(2); // e.g. "red" or "#37FF89"
+        String spanText = spanMatch.group(3)!;
+        int spanStart = spanMatch.start;
+        int spanEnd = spanMatch.end;
+
+        // Add any normal text between last index and span start
+        if (spanStart > lastIndex) {
+          String normalText = text.substring(lastIndex, spanStart);
+          if (normalText.isNotEmpty) {
+            texts.add(NormalText(normalText));
+          }
+        }
+
+        // Build new tag list
+        List<SpannedTag> nestedTags = [
+          ...tags,
+          SpannedTag(spanType, attr: attr),
+        ];
+
+        // Parse nested spans recursively
+        var nestedElements = parseSpans(spanText, nestedTags);
+        if (nestedElements.isEmpty) {
+          texts.add(SpannedText(spanText, nestedTags));
+        } else {
+          texts.addAll(nestedElements);
+        }
+
+        lastIndex = spanEnd;
+      }
+
+      // Add any remaining normal text after the last span
+      if (lastIndex < text.length) {
+        String remainingText = text.substring(lastIndex);
+        if (remainingText.isNotEmpty) {
+          if (tags.isNotEmpty) {
+            texts.add(SpannedText(remainingText, tags));
+          } else {
+            texts.add(NormalText(remainingText));
+          }
+        }
+      }
+
+      return texts;
+    }
+
+    // Find the content inside <p> tags
+    Iterable<RegExpMatch> pMatches = pTagExp.allMatches(source);
+
+    for (var pMatch in pMatches) {
+      String pContent = pMatch.group(1)!; // Get the inner content of <p>
+      texts.addAll(parseSpans(pContent, []));
+    }
+
+    return texts;
+  }
+}
+
+abstract class TextPart {
+  final String text;
+
+  bool get isItalic => isExists({'i', 'italic'});
+
+  bool get isBold => isExists({'b', 'bold'});
+
+  bool get isLineThrough => isExists({'l', 'lineThrough'});
+
+  bool get isOverline => isExists({'u', 'overline'});
+
+  bool get isUnderline => isExists({'u', 'underline'});
+
+  bool get isSpannedText => this is SpannedText;
+
+  bool isExists(Set<String> tags) {
+    final x = this;
+    if (x is! SpannedText) return false;
+    return x.tags.any((e) => tags.contains(e.tag));
+  }
+
+  SpannedTag tag(Set<String> tags) {
+    if (tags.isEmpty) return SpannedTag('');
+    final x = this;
+    if (x is! SpannedText) {
+      return SpannedTag(tags.first);
+    }
+    try {
+      final y = x.tags.firstWhere((e) => tags.contains(e.tag));
+      return y;
+    } catch (_) {
+      return SpannedTag(tags.first);
+    }
+  }
+
+  const TextPart(this.text);
+
+  @override
+  String toString() => '$TextPart($text)';
+}
+
+class NormalText extends TextPart {
+  const NormalText(super.text);
+
+  @override
+  String toString() => '$NormalText($text)';
+}
+
+class SpannedTag {
+  final String tag;
+  final String? attr;
+
+  const SpannedTag(this.tag, {this.attr});
+
+  @override
+  String toString() {
+    if (attr == null) return tag;
+    return "$tag:$attr";
+  }
+}
+
+class SpannedText extends TextPart {
+  final List<SpannedTag> tags;
+
+  const SpannedText(super.text, this.tags);
+
+  @override
+  String toString() => '$SpannedText(text: $text, tags: $tags)';
+}
+
+extension TextParserExtension on String {
+  List<TextPart> get parsedSpanTexts => TextParser.parse(this);
+}
