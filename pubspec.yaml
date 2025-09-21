@@ -1,6 +1,6 @@
 name: flutter_text_parser
 description: "flutter_text_parser is a Dart library that allows you to parse any string with custom tags and render it as styled spanned text. It supports inline formatting like bold, italic, colors, and more, making it easy to transform plain tagged text (e.g., <b><i>Flutter</i></b> is <color:red>awesome.</color>) into richly styled widgets in Flutter."
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/Mohiuddin655-PUB/flutter_text_parser
 
 environment:
@@ -15,5 +15,3 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-
-flutter:
